@@ -5,7 +5,6 @@
 #include <fmt/format.h>
 
 // TODO:
-// Move the map into a class
 // specialize on single item alloc
 // specialize on tagAless, hence no lambda
 // support debugging mode where all static type are check against dynamic info
@@ -24,7 +23,6 @@ class Allocator {
       destructor_t destructor;
       // could have some string based on __func__ to see typename
       // or https://en.cppreference.com/w/cpp/types/type_index
-      alloc_info_t() = default; // Needed by map...
       alloc_info_t(bool td,
                    std::size_t c,
                    std::uintptr_t A,
@@ -47,14 +45,14 @@ public:
       auto ptr = static_cast<Type*>( std::malloc( sizeof(Type) * count ) );
 
       // Run the constructors
-      if constexpr (!std::is_trivially_constructible<Type>::value) {
+      if (!std::is_trivially_constructible<Type>::value) {
             for (int i = 0; i < count ;i++ ) {
                new (ptr + i) Type;
             }
          }
 
       // Setup the destructor lambda
-      constexpr alloc_info_t::destructor_t destructor = std::is_trivially_destructible<Type>::value ? (alloc_info_t::destructor_t)nullptr :
+      alloc_info_t::destructor_t destructor = std::is_trivially_destructible<Type>::value ? (alloc_info_t::destructor_t)nullptr :
          [] ( void *mem, std::size_t count ) {
          auto ptr = static_cast<Type*>(mem);
          for (int i = 0; i < count ;i++ ) {
@@ -80,7 +78,8 @@ public:
 
       // Run the destructor directly
       if (!std::is_trivially_destructible<Type>::value) {
-         const alloc_info_t &info = memory[ (uintptr_t)mem ];
+         // We should validate the find here else we will crash for unknown pointers
+         const alloc_info_t &info = memory.find( (uintptr_t)mem )->second;
          for (int i = 0; i < info.count ;i++ ) {
             (mem + i)->~Type();
          }
