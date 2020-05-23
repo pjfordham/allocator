@@ -39,7 +39,7 @@ public:
    Allocator( Allocator&& alloc ) = delete;
 
    template<typename Type>
-   Type* allocate_and_construct( std::size_t count, std::uintptr_t tagA, std::uintptr_t tagB) {
+   Type* malloc( std::size_t count, std::uintptr_t tagA, std::uintptr_t tagB) {
 
       // Do the actuall memory allocation
       auto ptr = static_cast<Type*>( std::malloc( sizeof(Type) * count ) );
@@ -93,7 +93,7 @@ public:
 
    }
 
-   void free_all_with_tag( std::uintptr_t tagA ) {
+   void free_tags( std::uintptr_t low_tag, std::uintptr_t high_tag ) {
 
       // Walk over the map
       for (auto element : memory) {
@@ -101,7 +101,7 @@ public:
          const alloc_info_t &info = element.second;
 
          // If the tag matches free the allocation
-         if ( info.tagA == tagA ) {
+         if ( low_tag <= info.tagA && info.tagA <= high_tag ) {
 
             // Run the destructors lambda
             if ( !info.trivially_destructible ) {
@@ -118,16 +118,19 @@ public:
 
    }
 
-   void dump( ) const {
+   void dump_heap( std::uintptr_t low_tag, std::uintptr_t high_tag ) const {
       fmt::print( "{:>16} {:>16} {:>16} {:>16} {:>16} {:>16} \n",
                   "Pointer", "No Destructor", "Count",
                   "tagA", "tagB","size of type");
       for (auto element : memory) {
          auto ptr = element.first;
          alloc_info_t &info = element.second;
-         fmt::print( "{:>16x} {:>16} {:>16} {:>16} {:>16x} {:>16} \n",
-                     ptr, info.trivially_destructible, info.count,
-                     info.tagA, info.tagB, info.sizeoftype);
+         // If the tag matches dump the info
+         if ( low_tag <= info.tagA && info.tagA <= high_tag ) {
+            fmt::print( "{:>16x} {:>16} {:>16} {:>16} {:>16x} {:>16} \n",
+                        ptr, info.trivially_destructible, info.count,
+                        info.tagA, info.tagB, info.sizeoftype);
+         }
       }
    }
 

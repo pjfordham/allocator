@@ -34,21 +34,20 @@ int main(int argc, const char** argv) {
 
    Allocator Z;
 
-   A* a = Z.allocate_and_construct<A>(3, 1, reinterpret_cast<uintptr_t>(&a));
-   B* b = Z.allocate_and_construct<B>(5, 1,  reinterpret_cast<uintptr_t>(&b));
-   A* c = Z.allocate_and_construct<A>(2, 2,  reinterpret_cast<uintptr_t>(&c));
-   B* d = Z.allocate_and_construct<B>(4, 3,  reinterpret_cast<uintptr_t>(&d));
+   A* a = Z.malloc<A>(3, 1, reinterpret_cast<uintptr_t>(&a));
+   B* b = Z.malloc<B>(5, 1, reinterpret_cast<uintptr_t>(&b));
+   A* c = Z.malloc<A>(2, 2, reinterpret_cast<uintptr_t>(&c));
+   B* d = Z.malloc<B>(4, 3, reinterpret_cast<uintptr_t>(&d));
+   C* e = Z.malloc<C>(4, 3, reinterpret_cast<uintptr_t>(&d));
 
-   C* e = Z.allocate_and_construct<C>(4, 3,  reinterpret_cast<uintptr_t>(&d));
-
-   Z.dump();
-   Z.free_all_with_tag( 1 );
-   Z.dump();
+   Z.dump_heap(1,3);
+   Z.free_tags( 1, 1 );
+   Z.dump_heap(1,3);
    Z.free( c );
-   Z.dump();
+   Z.dump_heap(1,3);
    Z.free( d );
    Z.free( e );
-   Z.dump();
+   Z.dump_heap(1,3);
 
 
    return 0;
