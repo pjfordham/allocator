@@ -1,6 +1,6 @@
 #include <map>
-#include <functional>
 #include <cstdint>
+#include <cstdlib>
 #include <type_traits>
 #include <fmt/format.h>
 
@@ -28,7 +28,7 @@ class Allocator {
       alloc_info_t(bool td,
                    std::size_t c,
                    std::uintptr_t A,
-                std::uintptr_t B,
+                   std::uintptr_t B,
                    std::size_t sot,
                    destructor_t d) : trivially_destructible(td), count(c), tagA(A), tagB(B), sizeoftype(sot), destructor(d) {}
    };
