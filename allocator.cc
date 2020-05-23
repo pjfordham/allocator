@@ -15,7 +15,8 @@ struct A {
 struct B {
    int x;
    int y;
-   B(): x(0), y(0) {
+   float z;
+   B(): x(0), y(0), z(2.3) {
       fmt::print(" B(): {:x}\n", (uintptr_t)this );
    }
    ~B() {
@@ -26,24 +27,28 @@ struct B {
 struct C {
    int x;
    int y;
+   int z;
 };
 
 int main(int argc, const char** argv) {
 
-   A* a = z_allocate_and_construct<A>(3, 1, reinterpret_cast<uintptr_t>(&a));
-   B* b = z_allocate_and_construct<B>(5, 1,  reinterpret_cast<uintptr_t>(&b));
-   A* c = z_allocate_and_construct<A>(2, 2,  reinterpret_cast<uintptr_t>(&c));
-   B* d = z_allocate_and_construct<B>(4, 3,  reinterpret_cast<uintptr_t>(&d));
+   Allocator Z;
 
-   C* e = z_allocate_and_construct<C>(4, 3,  reinterpret_cast<uintptr_t>(&d));
+   A* a = Z.allocate_and_construct<A>(3, 1, reinterpret_cast<uintptr_t>(&a));
+   B* b = Z.allocate_and_construct<B>(5, 1,  reinterpret_cast<uintptr_t>(&b));
+   A* c = Z.allocate_and_construct<A>(2, 2,  reinterpret_cast<uintptr_t>(&c));
+   B* d = Z.allocate_and_construct<B>(4, 3,  reinterpret_cast<uintptr_t>(&d));
 
-   z_dump();
-   z_free_all_with_tag( 1 );
-   z_free( c );
-   z_dump();
-   z_free( d );
-   z_free( e );
-   z_dump();
+   C* e = Z.allocate_and_construct<C>(4, 3,  reinterpret_cast<uintptr_t>(&d));
+
+   Z.dump();
+   Z.free_all_with_tag( 1 );
+   Z.dump();
+   Z.free( c );
+   Z.dump();
+   Z.free( d );
+   Z.free( e );
+   Z.dump();
 
 
    return 0;
