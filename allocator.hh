@@ -5,72 +5,109 @@
 #include <fmt/format.h>
 
 struct alloc_info_t {
+   typedef void (*destructor_t) ( void *mem, std::size_t count);
    bool trivially_destructible;
    std::size_t count;
    std::uintptr_t tagA;
    std::uintptr_t tagB;
    std::size_t sizeoftype;
-   std::function<void(void*)> destructor;
+   destructor_t destructor;
    // could have some string based on __func__ to see typename
    // or https://en.cppreference.com/w/cpp/types/type_index
+   alloc_info_t() = default; // Needed by map...
+   alloc_info_t(bool td,
+                std::size_t c,
+                std::uintptr_t A,
+                std::uintptr_t B,
+                std::size_t sot,
+                destructor_t d) : trivially_destructible(td), count(c), tagA(A), tagB(B), sizeoftype(sot), destructor(d) {}
 };
+
+// TODO:
+// Move the map into a class
+// specialize on single item alloc
+// specialize on tagAless, hence no lambda
+// support debugging mode where all static type are check against dynamic info
 
 std::map<uintptr_t, alloc_info_t> memory;
 
 template<typename Type>
 Type* z_allocate_and_construct( std::size_t count, std::uintptr_t tagA, std::uintptr_t tagB) {
-   alloc_info_t info {
-      std::is_trivially_destructible<Type>::value,
-         count,
-         tagA,
-         tagB,
-         sizeof(Type) };
 
-   auto ptr = static_cast<Type*>( malloc( info.sizeoftype * count ) );
+   // Do the actuall memory allocation
+   auto ptr = static_cast<Type*>( malloc( sizeof(Type) * count ) );
 
-   // This is probably redundant.
+   // Run the constructors
    if (!std::is_trivially_constructible<Type>::value) {
-      // manually call constructors
-      for (int i = 0; i< count ;i++ ) {
+      for (int i = 0; i < count ;i++ ) {
          new (ptr + i) Type;
       }
-   } else {
-      fmt::print( " Trivial(): {:x}\n", (std::uintptr_t)ptr );
    }
 
-   if ( !info.trivially_destructible) {
-      info.destructor = [=, count = info.count] ( void *mem) {
-         auto ptr = static_cast<Type*>(mem);
-         for (int i = 0; i< count ;i++ ) {
-            (ptr + i)->~Type();
-         }
-      } ;
-   }
-   memory[ (uintptr_t)ptr ] = info;
+   // Setup the destructor lambda
+   const alloc_info_t::destructor_t destructor = std::is_trivially_destructible<Type>::value ? (alloc_info_t::destructor_t)nullptr :
+      [] ( void *mem, std::size_t count ) {
+      auto ptr = static_cast<Type*>(mem);
+      for (int i = 0; i < count ;i++ ) {
+         (ptr + i)->~Type();
+      }
+   };
+
+   // Emplace the pointer and the allocaion information block into the map
+   memory.emplace( std::piecewise_construct,
+                   std::make_tuple( (uintptr_t) ptr),
+                   std::make_tuple(std::is_trivially_destructible<Type>::value,
+                                   count,
+                                   tagA,
+                                   tagB,
+                                   sizeof(Type),
+                                   destructor) );
+
    return ptr;
 }
 
 template<typename Type>
 void z_free( Type *mem ) {
-   alloc_info_t info = memory[ (uintptr_t)mem ];
 
-   if (!info.trivially_destructible) {
-      info.destructor( (void*)mem);
-   } else {
-      fmt::print( "~Trivial(): {:x}\n", (std::uintptr_t)mem );
-   }
-   free(mem);
-   memory.erase( (uintptr_t)mem );
-}
-
-static void z_free_all_with_tag(  std::uintptr_t tagA ){
-   for (auto element : memory) {
-      auto ptr = element.first;
-      alloc_info_t &info = element.second;
-      if (info.tagA == tagA) {
-         z_free( (void*)ptr);
+   // Run the destructor directly
+   if (!std::is_trivially_destructible<Type>::value) {
+      const alloc_info_t &info = memory[ (uintptr_t)mem ];
+      for (int i = 0; i < info.count ;i++ ) {
+         (mem + i)->~Type();
       }
    }
+
+   // Free the underlying memory
+   free(mem);
+
+   // Remove the entry from the map
+   memory.erase( (uintptr_t)mem );
+
+}
+
+static void z_free_all_with_tag( std::uintptr_t tagA ){
+
+   // Walk over the map
+   for (auto element : memory) {
+      auto ptr = element.first;
+      const alloc_info_t &info = element.second;
+
+      // If the tag matches free the allocation
+      if ( info.tagA == tagA ) {
+
+         // Run the destructors lambda
+         if ( !info.trivially_destructible ) {
+            info.destructor( (void*)ptr, info.count );
+         }
+
+         // Free the underlying memory
+         free((void*)ptr);
+
+         // Remove the entry from the map
+         memory.erase( ptr );
+      }
+   }
+
 }
 
 static void z_dump( ){
