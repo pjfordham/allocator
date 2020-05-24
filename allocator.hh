@@ -10,12 +10,12 @@
 // support debugging mode where all static type are check against dynamic info
 // constexpr
 // exceptions?
+// Just wrap existing Z_Malloc and Z_Free?
 
 class Allocator {
 
    struct alloc_info_t {
       typedef void (*destructor_t) ( void *mem, std::size_t count);
-      bool trivially_destructible;
       std::size_t count;
       std::uintptr_t tag;
       std::uintptr_t user;
@@ -23,12 +23,11 @@ class Allocator {
       destructor_t destructor;
       // could have some string based on __func__ to see typename
       // or https://en.cppreference.com/w/cpp/types/type_index
-      alloc_info_t(bool td,
-                   std::size_t c,
-                   std::uintptr_t A,
-                   std::uintptr_t B,
-                   std::size_t sot,
-                   destructor_t d) : trivially_destructible(td), count(c), tag(A), user(B), sizeoftype(sot), destructor(d) {}
+      alloc_info_t( std::size_t c,
+                    std::uintptr_t A,
+                    std::uintptr_t B,
+                    std::size_t sot,
+                    destructor_t d) : count(c), tag(A), user(B), sizeoftype(sot), destructor(d) {}
    };
 
    std::map<uintptr_t, alloc_info_t> memory;
@@ -67,12 +66,11 @@ public:
       // Emplace the pointer and the allocaion information block into the map
       memory.emplace( std::piecewise_construct,
                       std::make_tuple( (uintptr_t) ptr),
-                      std::make_tuple(std::is_trivially_destructible<Type>::value,
-                                      count,
-                                      tag,
-                                      (uintptr_t) user,
-                                      sizeof(Type),
-                                      destructor) );
+                      std::make_tuple( count,
+                                       tag,
+                                       (uintptr_t) user,
+                                       sizeof(Type),
+                                       destructor) );
 
       return ptr;
    }
@@ -108,7 +106,7 @@ public:
          if ( low_tag <= info.tag && info.tag <= high_tag ) {
 
             // Run the destructors lambda
-            if ( !info.trivially_destructible ) {
+            if ( info.destructor ) {
                info.destructor( (void*)ptr, info.count );
             }
 
@@ -128,6 +126,13 @@ public:
       info.tag = tag;
    }
 
+   template<typename Type>
+   void change_user( Type* mem, Type **user ) {
+      alloc_info_t &info = memory.find( (uintptr_t)mem )->second;
+      info.user = (uintptr_t)user;
+      *user = mem;
+   }
+
    void free_all(){
 
       // Walk over the map
@@ -136,7 +141,7 @@ public:
          const alloc_info_t &info = element.second;
 
          // Run the destructors lambda
-         if ( !info.trivially_destructible ) {
+         if ( info.destructor ) {
             info.destructor( (void*)ptr, info.count );
          }
 
@@ -159,7 +164,7 @@ public:
          // If the tag matches dump the info
          if ( low_tag <= info.tag && info.tag <= high_tag ) {
             fmt::print( "{:>16x} {:>16} {:>16} {:>16} {:>16x} {:>16} \n",
-                        ptr, info.trivially_destructible, info.count,
+                        ptr, !info.destructor, info.count,
                         info.tag, info.user, info.sizeoftype);
          }
       }
@@ -177,12 +182,11 @@ void* Allocator::malloc<void>( std::size_t count, std::uintptr_t tag, void **use
    // Emplace the pointer and the allocaion information block into the map
    memory.emplace( std::piecewise_construct,
                    std::make_tuple( (uintptr_t) ptr),
-                   std::make_tuple(true,
-                                   1,
-                                   tag,
-                                   (uintptr_t)user,
-                                   count,
-                                   nullptr) );
+                   std::make_tuple( 1,
+                                    tag,
+                                    (uintptr_t)user,
+                                    count,
+                                    nullptr) );
 
    return ptr;
 }
