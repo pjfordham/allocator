@@ -40,15 +40,20 @@ int main(int argc, const char** argv) {
    B* d = Z.malloc<B>(4, 3, reinterpret_cast<uintptr_t>(&d));
    C* e = Z.malloc<C>(4, 3, reinterpret_cast<uintptr_t>(&d));
 
-   Z.dump_heap(1,3);
+   void *buffer = Z.malloc<void>(10,5, 0xDEADBEEF);
+
+   Z.dump_heap(1,5);
    Z.free_tags( 1, 1 );
-   Z.dump_heap(1,3);
+   Z.dump_heap(1,5);
    Z.free( c );
-   Z.dump_heap(1,3);
+   Z.dump_heap(1,5);
    Z.free( d );
    Z.free( e );
-   Z.dump_heap(1,3);
-
+   Z.dump_heap(1,5);
+   Z.change_tag( buffer, 4 );
+   Z.dump_heap(1,5);
+   Z.free( buffer );
+   Z.dump_heap(1,5);
 
    return 0;
 }
