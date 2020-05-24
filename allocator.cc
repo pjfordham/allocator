@@ -34,13 +34,13 @@ int main(int argc, const char** argv) {
 
    Allocator Z;
 
-   A* a = Z.malloc<A>(3, 1, reinterpret_cast<uintptr_t>(&a));
-   B* b = Z.malloc<B>(5, 1, reinterpret_cast<uintptr_t>(&b));
-   A* c = Z.malloc<A>(2, 2, reinterpret_cast<uintptr_t>(&c));
-   B* d = Z.malloc<B>(4, 3, reinterpret_cast<uintptr_t>(&d));
-   C* e = Z.malloc<C>(4, 3, reinterpret_cast<uintptr_t>(&d));
+   A* a = Z.malloc<A>(3, 1, &a);
+   B* b = Z.malloc<B>(5, 1, &b);
+   A* c = Z.malloc<A>(2, 2, &c);
+   B* d = Z.malloc<B>(4, 3, &d);
+   C* e = Z.malloc<C>(4, 3, &e);
 
-   void *buffer = Z.malloc<void>(10,5, 0xDEADBEEF);
+   void *buffer = Z.malloc<void>(10,5, &buffer);
 
    Z.dump_heap(1,5);
    Z.free_tags( 1, 1 );

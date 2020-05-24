@@ -43,7 +43,7 @@ public:
    }
 
    template<typename Type>
-   Type* malloc( std::size_t count, std::uintptr_t tag, std::uintptr_t user) {
+   Type* malloc( std::size_t count, std::uintptr_t tag, Type **user) {
 
       // Do the actuall memory allocation
       auto ptr = static_cast<Type*>( std::malloc( sizeof(Type) * count ) );
@@ -70,7 +70,7 @@ public:
                       std::make_tuple(std::is_trivially_destructible<Type>::value,
                                       count,
                                       tag,
-                                      user,
+                                      (uintptr_t) user,
                                       sizeof(Type),
                                       destructor) );
 
@@ -169,7 +169,7 @@ public:
 
 // Specializations for <void> map onto raw calls to malloc and free
 template<>
-void* Allocator::malloc<void>( std::size_t count, std::uintptr_t tag, std::uintptr_t user ) {
+void* Allocator::malloc<void>( std::size_t count, std::uintptr_t tag, void **user ) {
 
    // Do the actuall memory allocation
    void* ptr = std::malloc( count );
@@ -180,7 +180,7 @@ void* Allocator::malloc<void>( std::size_t count, std::uintptr_t tag, std::uintp
                    std::make_tuple(true,
                                    1,
                                    tag,
-                                   user,
+                                   (uintptr_t)user,
                                    count,
                                    nullptr) );
 
